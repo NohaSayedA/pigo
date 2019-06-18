@@ -5,18 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"image"
-	"image/color"
-	"image/jpeg"
-	"image/png"
+
+	"github.com/NohaSayedA/pigo/core"
 	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/esimov/pigo/core"
-	"github.com/fogleman/gg"
 )
 
 const banner = `
@@ -31,20 +26,6 @@ Go (Golang) Face detection library.
 
 // Version indicates the current build version.
 var Version string
-
-var dc *gg.Context
-
-// faceDetector struct contains Pigo face detector general settings.
-type faceDetector struct {
-	angle        float64
-	cascadeFile  string
-	destination  string
-	minSize      int
-	maxSize      int
-	shiftFactor  float64
-	scaleFactor  float64
-	iouThreshold float64
-}
 
 // detectionResult contains the coordinates of the detected faces and the base64 converted image.
 type detectionResult struct {
@@ -92,7 +73,7 @@ func main() {
 	s.start("Processing...")
 	start := time.Now()
 
-	fd := NewFaceDetector(*destination, *cascadeFile, *minSize, *maxSize, *shiftFactor, *scaleFactor, *iouThreshold, *angle)
+	fd := pigo.NewFaceDetector(*destination, *cascadeFile, *minSize, *maxSize, *shiftFactor, *scaleFactor, *iouThreshold, *angle)
 	faces, err := fd.DetectFaces(*source)
 	if err != nil {
 		log.Fatalf("Detection error: %v", err)
@@ -116,126 +97,6 @@ func main() {
 
 	s.stop()
 	fmt.Printf("\nDone in: \x1b[92m%.2fs\n", time.Since(start).Seconds())
-}
-
-// newFaceDetector initialises the constructor function.
-func NewFaceDetector(destination, cf string, minSize, maxSize int, shf, scf, iou, angle float64) *faceDetector {
-	return &faceDetector{
-		angle:        angle,
-		destination:  destination,
-		cascadeFile:  cf,
-		minSize:      minSize,
-		maxSize:      maxSize,
-		shiftFactor:  shf,
-		scaleFactor:  scf,
-		iouThreshold: iou,
-	}
-}
-
-// detectFaces run the detection algorithm over the provided source image.
-func (fd *faceDetector) DetectFaces(source string) ([]pigo.Detection, error) {
-	src, err := pigo.GetImage(source)
-	if err != nil {
-		return nil, err
-	}
-
-	pixels := pigo.RgbToGrayscale(src)
-	cols, rows := src.Bounds().Max.X, src.Bounds().Max.Y
-
-	dc = gg.NewContext(cols, rows)
-	dc.DrawImage(src, 0, 0)
-
-	cParams := pigo.CascadeParams{
-		MinSize:     fd.minSize,
-		MaxSize:     fd.maxSize,
-		ShiftFactor: fd.shiftFactor,
-		ScaleFactor: fd.scaleFactor,
-		ImageParams: pigo.ImageParams{
-			Pixels: pixels,
-			Rows:   rows,
-			Cols:   cols,
-			Dim:    cols,
-		},
-	}
-
-	cascadeFile, err := ioutil.ReadFile(fd.cascadeFile)
-	if err != nil {
-		return nil, err
-	}
-
-	pigo := pigo.NewPigo()
-	// Unpack the binary file. This will return the number of cascade trees,
-	// the tree depth, the threshold and the prediction from tree's leaf nodes.
-	classifier, err := pigo.Unpack(cascadeFile)
-	if err != nil {
-		return nil, err
-	}
-
-	// Run the classifier over the obtained leaf nodes and return the detection results.
-	// The result contains quadruplets representing the row, column, scale and detection score.
-	faces := classifier.RunCascade(cParams, fd.angle)
-
-	// Calculate the intersection over union (IoU) of two clusters.
-	faces = classifier.ClusterDetections(faces, fd.iouThreshold)
-
-	return faces, nil
-}
-
-// drawFaces marks the detected faces with a circle in case isCircle is true, otherwise marks with a rectangle.
-func (fd *faceDetector) DrawFaces(faces []pigo.Detection, isCircle bool) ([]byte, []image.Rectangle, error) {
-	var (
-		qThresh float32 = 5.0
-		rects   []image.Rectangle
-	)
-
-	for _, face := range faces {
-		if face.Q > qThresh {
-			if isCircle {
-				dc.DrawArc(
-					float64(face.Col),
-					float64(face.Row),
-					float64(face.Scale/2),
-					0,
-					2*math.Pi,
-				)
-			} else {
-				dc.DrawRectangle(
-					float64(face.Col-face.Scale/2),
-					float64(face.Row-face.Scale/2),
-					float64(face.Scale),
-					float64(face.Scale),
-				)
-			}
-			rects = append(rects, image.Rect(
-				face.Col-face.Scale/2,
-				face.Row-face.Scale/2,
-				face.Scale,
-				face.Scale,
-			))
-			dc.SetLineWidth(2.0)
-			dc.SetStrokeStyle(gg.NewSolidPattern(color.RGBA{R: 255, G: 0, B: 0, A: 255}))
-			dc.Stroke()
-		}
-	}
-
-	img := dc.Image()
-	output, err := os.OpenFile(fd.destination, os.O_CREATE|os.O_RDWR, 0755)
-	defer output.Close()
-
-	if err != nil {
-		return nil, nil, err
-	}
-	ext := filepath.Ext(output.Name())
-
-	switch ext {
-	case ".jpg", ".jpeg":
-		jpeg.Encode(output, img, &jpeg.Options{Quality: 100})
-	case ".png":
-		png.Encode(output, img)
-	}
-	rf, err := ioutil.ReadFile(fd.destination)
-
-	return rf, rects, err
 }
 
 type spinner struct {
