@@ -92,13 +92,13 @@ func main() {
 	s.start("Processing...")
 	start := time.Now()
 
-	fd := newFaceDetector(*destination, *cascadeFile, *minSize, *maxSize, *shiftFactor, *scaleFactor, *iouThreshold, *angle)
-	faces, err := fd.detectFaces(*source)
+	fd := NewFaceDetector(*destination, *cascadeFile, *minSize, *maxSize, *shiftFactor, *scaleFactor, *iouThreshold, *angle)
+	faces, err := fd.DetectFaces(*source)
 	if err != nil {
 		log.Fatalf("Detection error: %v", err)
 	}
 
-	_, rects, err := fd.drawFaces(faces, *circleMarker)
+	_, rects, err := fd.DrawFaces(faces, *circleMarker)
 
 	if err != nil {
 		log.Fatalf("Error creating the image output: %s", err)
@@ -119,7 +119,7 @@ func main() {
 }
 
 // newFaceDetector initialises the constructor function.
-func newFaceDetector(destination, cf string, minSize, maxSize int, shf, scf, iou, angle float64) *faceDetector {
+func NewFaceDetector(destination, cf string, minSize, maxSize int, shf, scf, iou, angle float64) *faceDetector {
 	return &faceDetector{
 		angle:        angle,
 		destination:  destination,
@@ -133,7 +133,7 @@ func newFaceDetector(destination, cf string, minSize, maxSize int, shf, scf, iou
 }
 
 // detectFaces run the detection algorithm over the provided source image.
-func (fd *faceDetector) detectFaces(source string) ([]pigo.Detection, error) {
+func (fd *faceDetector) DetectFaces(source string) ([]pigo.Detection, error) {
 	src, err := pigo.GetImage(source)
 	if err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func (fd *faceDetector) detectFaces(source string) ([]pigo.Detection, error) {
 }
 
 // drawFaces marks the detected faces with a circle in case isCircle is true, otherwise marks with a rectangle.
-func (fd *faceDetector) drawFaces(faces []pigo.Detection, isCircle bool) ([]byte, []image.Rectangle, error) {
+func (fd *faceDetector) DrawFaces(faces []pigo.Detection, isCircle bool) ([]byte, []image.Rectangle, error) {
 	var (
 		qThresh float32 = 5.0
 		rects   []image.Rectangle
