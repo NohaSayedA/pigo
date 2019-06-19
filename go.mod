@@ -1,3 +1,5 @@
+module github.com/esimov/pigo
+
 go 1.12
 
 require (
