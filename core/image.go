@@ -29,7 +29,7 @@ type faceDetector struct {
 }
 
 // GetImage retrieves and decodes the image file to *image.NRGBA type.
-func GetImage(input string) (*image.NRGBA, error) {
+func GetImage(input string) (image.Image, error) {
 	file, err := os.Open(input)
 	if err != nil {
 		return nil, err
@@ -40,9 +40,8 @@ func GetImage(input string) (*image.NRGBA, error) {
 	if err != nil {
 		return nil, err
 	}
-	img := ImgToNRGBA(src)
 
-	return img, nil
+	return src, nil
 }
 
 // newFaceDetector initialises the constructor function.
@@ -60,13 +59,9 @@ func NewFaceDetector(destination, cf string, minSize, maxSize int, shf, scf, iou
 }
 
 // detectFaces run the detection algorithm over the provided source image.
-func (fd *faceDetector) DetectFaces(source string) ([]Detection, error) {
-	src, err := GetImage(source)
-	if err != nil {
-		return nil, err
-	}
-
-	pixels := RgbToGrayscale(src)
+func (fd *faceDetector) DetectFaces(src image.Image) ([]Detection, error) {
+	res := ImgToNRGBA(src)
+	pixels := RgbToGrayscale(res)
 	cols, rows := src.Bounds().Max.X, src.Bounds().Max.Y
 
 	dc = gg.NewContext(cols, rows)
