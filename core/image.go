@@ -4,14 +4,10 @@ import (
 	"github.com/fogleman/gg"
 	"image"
 	"image/color"
-	"image/jpeg"
 	_ "image/jpeg"
-	"image/png"
 	_ "image/png"
 	"io/ioutil"
 	"math"
-	"os"
-	"path/filepath"
 )
 
 var dc *gg.Context
@@ -20,7 +16,6 @@ var dc *gg.Context
 type faceDetector struct {
 	angle        float64
 	cascadeFile  string
-	destination  string
 	minSize      int
 	maxSize      int
 	shiftFactor  float64
@@ -28,27 +23,26 @@ type faceDetector struct {
 	iouThreshold float64
 }
 
-// GetImage retrieves and decodes the image file to *image.NRGBA type.
-func GetImage(input string) (image.Image, error) {
-	file, err := os.Open(input)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	src, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return src, nil
-}
+//// GetImage retrieves and decodes the image file to *image.NRGBA type.
+//func GetImage(input string) (image.Image, error) {
+//	file, err := os.Open(input)
+//	if err != nil {
+//		return nil, err
+//	}
+//	defer file.Close()
+//
+//	src, _, err := image.Decode(file)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return src, nil
+//}
 
 // newFaceDetector initialises the constructor function.
-func NewFaceDetector(destination, cf string, minSize, maxSize int, shf, scf, iou, angle float64) *faceDetector {
+func NewFaceDetector(cf string, minSize, maxSize int, shf, scf, iou, angle float64) *faceDetector {
 	return &faceDetector{
 		angle:        angle,
-		destination:  destination,
 		cascadeFile:  cf,
 		minSize:      minSize,
 		maxSize:      maxSize,
@@ -104,7 +98,7 @@ func (fd *faceDetector) DetectFaces(src image.Image) ([]Detection, error) {
 }
 
 // drawFaces marks the detected faces with a circle in case isCircle is true, otherwise marks with a rectangle.
-func (fd *faceDetector) DrawFaces(faces []Detection, isCircle bool) ([]byte, []image.Rectangle, error) {
+func (fd *faceDetector) DrawFaces(faces []Detection, isCircle bool) image.Image {
 	var (
 		qThresh float32 = 5.0
 		rects   []image.Rectangle
@@ -141,23 +135,8 @@ func (fd *faceDetector) DrawFaces(faces []Detection, isCircle bool) ([]byte, []i
 	}
 
 	img := dc.Image()
-	output, err := os.OpenFile(fd.destination, os.O_CREATE|os.O_RDWR, 0755)
-	defer output.Close()
 
-	if err != nil {
-		return nil, nil, err
-	}
-	ext := filepath.Ext(output.Name())
-
-	switch ext {
-	case ".jpg", ".jpeg":
-		jpeg.Encode(output, img, &jpeg.Options{Quality: 100})
-	case ".png":
-		png.Encode(output, img)
-	}
-	rf, err := ioutil.ReadFile(fd.destination)
-
-	return rf, rects, err
+	return img
 }
 
 // ImgToNRGBA converts any image type to *image.NRGBA with min-point at (0, 0).
